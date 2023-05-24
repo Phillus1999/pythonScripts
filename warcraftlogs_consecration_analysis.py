@@ -1,4 +1,3 @@
-from time import time
 from datetime import datetime
 
 import scipy.stats as st
@@ -7,7 +6,7 @@ import matplotlib.pyplot as plt
 
 
 def read_csv(filename):
-    #read log.csv first column as timestamps
+    #read halls.csv first column as timestamps
     data = np.genfromtxt(filename, delimiter=',', usecols=0, dtype=str, skip_header=1)
     #convert timestamps to datetime objects
     data_converted = [datetime.strptime(x,  '"%M:%S.%f"') for x in data]
@@ -17,8 +16,8 @@ def read_csv(filename):
 def convert_to_milliseconds(timestamp):
     return timestamp.minute * 60000 + timestamp.second * 1000 + timestamp.microsecond / 1000
 
-def plot_graph():
-    data = read_csv("log.csv")
+def plot_graph(filename):
+    data = read_csv(filename)
     time_differences_seconds = evaluate_data(data)
     # Create a figure and axes
     fig, ax = plt.subplots()
@@ -57,14 +56,17 @@ def plot_graph():
     # Increase the font size of tick labels
     ax.tick_params(axis='x', labelsize=10)
     ax.tick_params(axis='y', labelsize=10)
-    plt.savefig('plot.png')
-    plt.show()
+    plt.savefig(filename + 'plot.png')
 
 
 def evaluate_data(data):
+    """
+    takes a list of timestamps and returns a list of time differences in seconds and clears outliers
+    :param data: list of timestamps in milliseconds
+    :return: list of time differences in seconds
+    """
     # calculate time differences to the next entry
     time_differences = [data[i + 1] - data[i] for i in range(len(data) - 1)]
-    print(time_differences)
     time_differences_seconds = [x / 1000 for x in time_differences]
     # remove first entry
     time_differences_seconds.pop(0)
@@ -73,20 +75,33 @@ def evaluate_data(data):
     return time_differences_seconds
 
 
-def plot_histogramm():
-    data = read_csv("log.csv")
-    time_differences_seconds = evaluate_data(data)
+def plot_histogram(data):
+    """Plot a histogramm of the data
+    :param data: list of time differences in seconds
+    :return:histogramm with fitted normal distribution
+    """
     # Create a figure and axes
     fig, ax = plt.subplots()
-    mu, sigma = st.norm.fit(time_differences_seconds)
-    plt.plot(st.norm(mu, sigma).pdf(np.linspace(np.min(time_differences_seconds), np.max(time_differences_seconds), 30)))
-    plt.hist(time_differences_seconds, bins=30, density=True)
+    mu, sigma = st.norm.fit(data)
+    plt.plot(st.norm(mu, sigma).pdf(np.linspace(np.min(data), np.max(data), 30)))
+    plt.hist(data, bins=30, density=True)
 
     plt.xlabel('time between uses in seconds')
     plt.ylabel('probability density')
 
-    plt.savefig('histogramm.png')
+    plt.savefig('avg_probabilities.png')
     plt.show()
 
+def combine_data(filenames):
+    #create a singular list of all timestamps
+    data = []
+    for filename in filenames:
+        data.extend(evaluate_data(read_csv(filename)))
+    return data
+
 if __name__ == "__main__":
-    plot_histogramm()
+    logs = ['halls.csv', 'freehold.csv', 'nelt.csv']
+    datas = combine_data(logs)
+    plot_histogram(datas)
+    for log in logs:
+        plot_graph(log)
